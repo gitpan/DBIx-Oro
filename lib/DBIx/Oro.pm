@@ -2,7 +2,7 @@ package DBIx::Oro;
 use strict;
 use warnings;
 
-our $VERSION = '0.28_5';
+our $VERSION = '0.28_7';
 
 # See the bottom of this file for the POD documentation.
 
@@ -26,6 +26,10 @@ our $VERSION = '0.28_5';
 # Todo: To change queries from different drivers,
 #       use events.
 # Todo: Return key -column_order => [] with fetchall_arrayref.
+# Todo: my $value = $oro->value(Table => 'Field') # Ähnlich wie count
+# Todo: Oder my ($value) = $oro->value(Table => Field => { -limit => 1 }) # und es gibt ein Array zurück
+
+# Todo: Improve documentation by introducing an "ADVANCED" section for some methods.
 
 use v5.10.1;
 
@@ -313,10 +317,11 @@ sub insert {
     my (@keys, @values);
 
     while (my ($key, $value) = each %param) {
-      next unless $key =~ $KEY_REGEX;
-      push(@keys, $key);
-      push(@values, $value);
-    };
+      # Insert pairs
+      next if !ref $key && $key !~ $DBIx::Oro::KEY_REGEX;
+      push @keys,   $key;
+      push @values, $value;
+   };
 
     # Create insert string
     my $sql = 'INSERT ';
@@ -329,7 +334,7 @@ sub insert {
     };
 
     $sql .= 'INTO ' . $table .
-      ' (' . join(', ', @keys) . ') VALUES (' . _q(\@keys) . ')';
+      ' (' . join(', ', @keys) . ') VALUES (' . _q(\@values) . ')';
 
     # Prepare and execute
     return scalar $self->prep_and_exec( $sql, \@values );
@@ -1394,8 +1399,16 @@ sub _get_pairs {
 	}
       }
 
-      # Element of
+      # Element of or SQL
       elsif (ref $value eq 'ARRAY') {
+
+	# Escaped SQL
+	if (ref $value->[0] && ref $value->[0] eq 'SCALAR') {
+	  push(@pairs, "$key = (" . ${$value->[0]} . ')'),
+	    push(@values, @{$value}[ 1 .. $#$value ]);
+	  next;
+	};
+
 	# Undefined values in the array are not specified
 	# as ' IN (NULL, ...)' does not work
 	push (@pairs, "$key IN (" . _q($value) . ')' ),
@@ -1462,10 +1475,19 @@ sub _get_pairs {
 	      push(@pairs, $p);
 	    };
 
-	  } else {
+	  }
+
+	  # Unknown operator
+	  else {
+	    $val //= '?';
 	    carp "Unknown Oro operator $key $op $val" and next;
 	  }
 	}
+      }
+
+      # Escaped SQL
+      elsif (ref $value eq 'SCALAR') {
+	push(@pairs, "$key = ($$value)"),
       }
 
       # Stringifiable object
@@ -1676,6 +1698,7 @@ sub _stringify {
   undef;
 }
 
+
 # Clean alias string
 sub _clean_alias {
   for (my $x = shift) {
@@ -1688,7 +1711,46 @@ sub _clean_alias {
 
 # Questionmark string
 sub _q {
-  join(', ', ('?') x scalar( @{ $_[0] } ));
+  my ($s, $i, $r);
+
+  # Loop over all values
+  for ($i = 0; $i < scalar(@{$_[0]}); $i++) {
+    $r = $_[0]->[$i];
+
+    # Append key
+    $s .= '?,' and next unless ref $r;
+
+    # Scalar for direct SQL input
+    if (ref $r eq 'SCALAR') {
+      $s .= "($$r),";
+      splice(@{$_[0]}, $i, 1, ());
+    }
+
+    # Array for direct SQL input
+    elsif (ref $r eq 'ARRAY') {
+
+      # Check for scalar reference
+      unless (ref $r->[0]) {
+	carp 'First element of array insertion needs to be a scalar reference';
+	splice(@{$_[0]}, $i, 1) and next;
+      };
+
+      # Embed SQL statement directly
+      $s .= '(' . ${ shift @$r } . '),';
+      splice(@{$_[0]}, $i, scalar @$r, @$r);
+    }
+
+    # Stringifyable objects
+    else {
+      $s .= '?,' and next;
+    };
+  };
+
+  # Delete final ','
+  chop $s;
+
+  # Return value
+  $s;
 };
 
 
@@ -1863,7 +1925,7 @@ In array context this will also return a value indicating
 if the request was a real database request.
 If the last result was returned by a cache, the value is true, otherwise false.
 
-B<Note> This is for debugging purposes only - the returned SQL may not be
+B<Note:> This is for debugging purposes only - the returned SQL may not be
 valid due to reformatting.
 
 B<The array return is EXPERIMENTAL and may change without warnings.>
@@ -1911,7 +1973,9 @@ B<The class name of the return object may change without warnings!>
   $oro->insert(Person => {
     id   => 4,
     name => 'Peter',
-    age  => 24
+    age  => 24,
+    address => \"SELECT address FROM Address where id = 4",
+    country => [\"SELECT country FROM County where id = ?", 3]
   });
   $oro->insert(Person =>
     ['id', 'name'] => [4, 'Peter'], [5, 'Sabine']
@@ -1920,6 +1984,11 @@ B<The class name of the return object may change without warnings!>
 Inserts a new row to a given table for single insertions.
 
 Expects the table name and a hash reference of values to insert.
+In case the values are scalar references, the string is directly used
+as an SQL statement. In case the values are array references and the first
+element is a scalar reference, the string is directly used as an SQL
+statement and the following values are inserted for placeholders.
+
 For multiple insertions, it expects the table name
 to insert, an array reference of the column names and an arbitrary
 long array of array references of values to insert.
@@ -1934,6 +2003,8 @@ names can contain array references itself with a column name followed by
 the default value. This value is inserted for each inserted entry
 and is especially useful for C<n:m> relation tables.
 
+B<Note:> The treatment of scalar and array references as insertion values
+is EXPERIMENTAL and may change without warnings.
 
 =head2 update
 
@@ -1971,8 +2042,9 @@ Scalar condition values will be inserted, if the fields do not exist.
   $users = $oro->select(Person => ['id', 'name']);
   $users = $oro->select(Person =>
     ['id'] => {
-      age  => 24,
-      name => ['Daniel', 'Sabine']
+      age    => 24,
+      name   => ['Daniel', 'Sabine'],
+      rights => [\"SELECT right FROM Rights WHERE right = ?", 2]
     });
   $users = $oro->select(Person => ['name:displayName']);
 
@@ -2005,7 +2077,10 @@ If a callback is given, the method has no return value.
 If the callback returns -1, the data fetching is aborted.
 
 In case of scalar values, identity is tested for the condition.
-In case of array references, it is tested, if the field value is an element of the set.
+In case of array references, it is tested, if the field value is an element of the set or,
+if the first element is a scalar reference, the string is taken as SQL directly and all
+following elements are parameters.
+In case of scalar references, the string is taken as SQL directly.
 In case of hash references, the keys of the hash represent operators to
 test with (see L<below|/Operators>).
 
