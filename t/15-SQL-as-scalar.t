@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Test::More tests => 21;
+use Test::More;
 
 use Data::Dumper;
 use File::Temp qw/:POSIX/;
@@ -40,6 +40,7 @@ ok($suite->init(qw/Name Content/), 'Init');
 
 END {
   ok($suite->drop, 'Transaction for Dropping') if $suite;
+  done_testing;
 };
 
 ok($oro->insert(Content => { title => 'Check!',
@@ -80,9 +81,11 @@ is($user->{surname}, 'Meier', 'Surname');
 is($user->{prename}, 'Akron', 'Prename');
 
 ok($oro->insert(Name => {
+  prename => \'SELECT prename FROM Name WHERE surname = "Fragezeichen"',
   surname => 'Mueller',
-  prename => \'SELECT prename FROM Name WHERE surname = "Fragezeichen"'
 }), 'Insert with subselect');
+
+__END__
 
 ok($user = $oro->load(Name => {surname => 'Mueller', prename => 'Nils' }), 'Load user');
 is($user->{surname}, 'Mueller', 'Surname');
