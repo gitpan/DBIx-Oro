@@ -2,7 +2,7 @@ package DBIx::Oro;
 use strict;
 use warnings;
 
-our $VERSION = '0.29_2';
+our $VERSION = '0.29_3';
 
 # See the bottom of this file for the POD documentation.
 
@@ -36,7 +36,6 @@ our $VERSION = '0.29_2';
 # Todo: Return key -column_order => [] with fetchall_arrayref.
 # Todo: my $value = $oro->value(Table => 'Field') # Ähnlich wie count
 # Todo: Oder my ($value) = $oro->value(Table => Field => { -limit => 1 }) # und es gibt ein Array zurück
-# Todo: Add -warn => 0 flag to method conditions and - for do() etc. - to table
 
 
 use v5.10.1;
@@ -339,10 +338,12 @@ sub insert {
     # Create insert string
     my $sql = 'INSERT ';
 
-    if ($prop) {
-      given ($prop->{-on_conflict}) {
-	when ('replace') { $sql = 'REPLACE '};
-	when ('ignore')  { $sql .= 'IGNORE '};
+    if ($prop && (my $oc = $prop->{-on_conflict})) {
+      if ($oc eq 'replace') {
+	$sql = 'REPLACE '
+      }
+      elsif ($oc eq 'ignore')  {
+	$sql .= 'IGNORE '
       };
     };
 
@@ -416,7 +417,9 @@ sub update {
   return unless @$pairs;
 
   # No arrays or operators allowed
-  return unless $pairs ~~ /^$KEY_REGEX\s+(?:=|IS\s)/o;
+  foreach (@$pairs) {
+    return unless $_ =~ /^$KEY_REGEX\s+(?:=|IS\s)/o;
+  };
 
   # Set undef to pairs
   my @pairs = map { $_ =~ s{ IS NULL$}{ = NULL}io; $_ } @$pairs;
@@ -1196,7 +1199,7 @@ sub last_insert_id {
 sub import_sql {
   my $self = shift;
 
-  carp 'import_sql is deprecated and will be removed in further versions';
+  carp 'import_sql is deprecated and will be deleted in further versions';
 
   # Get callback
   my $cb = pop @_ if ref $_[-1] && ref $_[-1] eq 'CODE';
@@ -1724,7 +1727,7 @@ sub _get_pairs {
       next unless defined $value;
 
       # Limit and Offset restriction
-      if ($key ~~ [qw/-limit -offset -distinct/]) {
+      if ($key =~ m/^-(?:limit|offset|distinct)$/) {
 	$prep{substr($key, 1)} = $value if $value =~ m/^\d+$/o;
       }
 
@@ -1960,7 +1963,7 @@ sub _q {
     # Scalar for direct SQL input
     if (ref $r eq 'SCALAR') {
       $s .= "($$r),";
-      splice(@{$_[0]}, $i, 1);
+      splice(@{$_[0]}, $i, 1, ());
     }
 
     # Array for direct SQL input
@@ -1969,7 +1972,8 @@ sub _q {
       # Check for scalar reference
       unless (ref $r->[0]) {
 	carp 'First element of array insertion needs to be a scalar reference';
-	splice(@{$_[0]}, $i++, 1) and next;
+	splice(@{$_[0]}, $i++, 1);
+	next;
       };
 
       # Embed SQL statement directly
@@ -1979,14 +1983,13 @@ sub _q {
 
     # Stringifyable objects
     else {
-      $s .= '?,' and $i++;
+      $i++;
+      $s .= '?,' and next;
     };
   };
 
   # Delete final ','
   chop $s;
-
-#warn $s;
 
   # Return value
   $s;
