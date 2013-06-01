@@ -32,4 +32,4 @@ requires:
 resources:
   license: http://www.opensource.org/licenses/artistic-license-2.0
   repository: https://github.com/Akron/DBIx-Oro
-version: 0.29_6
+version: 0.29_7
