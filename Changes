@@ -10,6 +10,8 @@
 	  - Add absent and disparate filter operations in list.
 	- 0.29_5
 	  - Support -or and -and junctions.
+	- 0.29_6
+	  - Fix hash randomization bug in test suite.
 
 0.28 2013-05-15
         - 0.28_1
