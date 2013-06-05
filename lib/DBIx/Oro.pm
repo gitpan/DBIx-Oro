@@ -2,7 +2,7 @@ package DBIx::Oro;
 use strict;
 use warnings;
 
-our $VERSION = '0.29_7';
+our $VERSION = '0.30_1';
 
 # See the bottom of this file for the POD documentation.
 
@@ -56,9 +56,9 @@ our $OP_REGEX = qr/^(?i:
 		     (?:eq|ne|[gl][te]|not)
 		   )$/x;
 
-our $KEY_REGEX = qr/[_\.0-9a-zA-Z]+/;
+our $KEY_REGEX = qr/`?[_\.0-9a-zA-Z]+`?/;
 
-our $KEY_REGEX_NOPREF = qr/[_0-9a-zA-Z]+/;
+our $KEY_REGEX_NOPREF = qr/`?[_0-9a-zA-Z]+`?/;
 
 our $NUM_RE = qr/^\s*(\d+)\s*$/;
 
@@ -348,7 +348,7 @@ sub insert {
     };
 
     $sql .= 'INTO ' . $table .
-      ' (' . join(', ', @keys) . ') VALUES (' . _q(\@values) . ')';
+      ' (' . join(', ', map { "`$_`" } @keys) . ') VALUES (' . _q(\@values) . ')';
 
     # Prepare and execute
     return scalar $self->prep_and_exec( $sql, \@values );
@@ -382,7 +382,7 @@ sub insert {
     unshift(@keys, @default_keys);
 
     my $sql .= 'INSERT INTO ' . $table .
-      ' (' . join(', ', @keys) . ') ' .
+      ' (' . join(', ',  map { "`$_`" } @keys) . ') ' .
 	'VALUES ';
 
     # Add data in brackets
@@ -1295,11 +1295,15 @@ sub DESTROY {
     $self->_password(0);
 
     # Delete cached kids
-    my $kids = $self->{dbh}->{CachedKids};
-    %$kids = () if $kids;
+    if (blessed $self->{dbh}) {
+      local $SIG{__WARN__} = \&_no_warn;
+      my $kids = $self->{dbh}->{CachedKids};
+      %$kids = () if $kids;
+    };
 
     # Disconnect
-    $self->{dbh}->disconnect unless $self->{dbh}->{Kids};
+    # $self->{dbh}->disconnect unless $self->{dbh}->{Kids};
+    $self->{dbh}->disconnect;
 
     # Delete parameters
     delete $self->{$_} foreach qw/dbh on_connect _connect_cb/;
@@ -1611,7 +1615,7 @@ sub _get_pairs {
     if (substr($key, 0, 1) ne '-') {
 
       # Get alias
-      $key = exists $alias->{$key} ? $alias->{$key} : $key;
+      $key = exists $alias->{$key} ? $alias->{$key} : (index($key, '.') >= 0 ? $key : '`' . $key . '`');
 
       # Equality
       unless (ref $value) {
@@ -2052,6 +2056,9 @@ sub _q {
   # Return value
   $s;
 };
+
+# Empty code ref
+sub _no_warn {};
 
 
 1;

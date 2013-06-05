@@ -1,3 +1,7 @@
+0.30 2013-06-06
+        - 0.30_1
+	  - Escape fields by default.
+
 0.29 2013-06-02
         - 0.29_1
 	  - Add list method.
@@ -14,6 +18,8 @@
 	  - Fix hash randomization bug in test suite.
 	- 0.29_7
 	  - Fix stringification bug in merge.
+	- 0.29_8
+	  - Fix small bug in automatic disconnect.
 
 0.28 2013-05-15
         - 0.28_1
