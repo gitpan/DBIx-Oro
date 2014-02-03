@@ -284,6 +284,9 @@ sub insert {
       push @values, $value;
     };
 
+    # Nothing to insert
+    return unless @keys;
+
     # Create insert string
     my $sql = 'INSERT ';
 
@@ -1091,7 +1094,7 @@ L<DBD::SQLite>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2011-2013, L<Nils Diewald|http://nils-diewald.de/>.
+Copyright (C) 2011-2014, L<Nils Diewald|http://nils-diewald.de/>.
 
 This program is free software, you can redistribute it
 and/or modify it under the same terms as Perl.
