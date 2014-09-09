@@ -2,9 +2,13 @@ package DBIx::Oro;
 use strict;
 use warnings;
 
-our $VERSION = '0.30_4';
+our $VERSION = '0.30_5';
 
 # See the bottom of this file for the POD documentation.
+
+# Todo: Are combined indices necessarily in the same order?
+#       In that case update and select etc. need ordered
+#       keys!
 
 # Todo: Improve documentation
 #       - =head1 ADVANCED CONCEPTS
@@ -36,7 +40,8 @@ our $VERSION = '0.30_4';
 # Todo: Return key -column_order => [] with fetchall_arrayref.
 # Todo: my $value = $oro->value(Table => 'Field') # Ähnlich wie count
 # Todo: Oder my ($value) = $oro->value(Table => Field => { -limit => 1 }) # und es gibt ein Array zurück
-
+# Todo: Check for BDB-support:
+#   http://charlesleifer.com/blog/sqlite-small-fast-reliable-choose-any-three-/
 
 use v5.10.1;
 
@@ -1052,7 +1057,7 @@ sub prep_and_exec {
   if ($dbh->err) {
 
     if (index($dbh->errstr, 'database') <= 0) {
-      carp $dbh->errstr . ' in "' . $self->last_sql . '"';
+      carp $dbh->errstr . ' in "' . _trim_last_sql($self->last_sql) . '"';
       return;
     };
 
@@ -1064,7 +1069,7 @@ sub prep_and_exec {
 	$dbh->prepare( $sql );
 
     if ($dbh->err) {
-      carp $dbh->errstr . ' in "' . $self->last_sql . '"';
+      carp $dbh->errstr . ' in "' . _trim_last_sql($self->last_sql) . '"';
       return;
     };
   };
@@ -1077,7 +1082,7 @@ sub prep_and_exec {
 
   # Check for errors
   if ($dbh->err) {
-    carp $dbh->errstr . ' in "' . $self->last_sql . '"';
+    carp $dbh->errstr . ' in "' . _trim_last_sql($self->last_sql) . '"';
     return;
   };
 
@@ -2065,6 +2070,17 @@ sub _q {
   # Return value
   $s;
 };
+
+
+# Trim last_sql message for reporting
+sub _trim_last_sql {
+  my $last_sql = shift;
+
+  if (length($last_sql) > 500) {
+    return substr($last_sql, 0, 497) . ' ...';
+  };
+};
+
 
 # Empty code ref
 sub _no_warn {};

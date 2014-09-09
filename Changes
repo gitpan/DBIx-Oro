@@ -1,4 +1,4 @@
-0.30 2014-02-03
+0.30 2014-09-09
         - 0.30_1
 	  - Escape fields by default.
         - 0.30_2
@@ -8,6 +8,8 @@
 	  - Improved documentation.
 	- 0.30_4
 	  - Fixed bug in documentation.
+	- 0.30_5
+	  - Return trimmed error messages.
 
 0.29 2013-06-02
         - 0.29_1

@@ -3,33 +3,33 @@ abstract: 'Simple Relational Database Accessor'
 author:
   - 'Nils Diewald'
 build_requires:
-  Data::Dumper: 0
-  Math::BigInt: 0
-  Test::More: 0
+  Data::Dumper: '0'
+  Math::BigInt: '0'
+  Test::More: '0'
 configure_requires:
-  ExtUtils::MakeMaker: 0
+  ExtUtils::MakeMaker: '0'
 dynamic_config: 1
-generated_by: 'ExtUtils::MakeMaker version 6.82, CPAN::Meta::Converter version 2.120351'
+generated_by: 'ExtUtils::MakeMaker version 6.82, CPAN::Meta::Converter version 2.141170'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
-  version: 1.4
+  version: '1.4'
 name: DBIx-Oro
 no_index:
   directory:
     - t
     - inc
 requires:
-  Carp: 0
-  DBD::SQLite: 1.33
-  DBI: 1.57
-  File::Temp: 0.2
-  bytes: 0
-  perl: 5.010001
-  strict: 0
-  utf8: 0
-  warnings: 0
+  Carp: '0'
+  DBD::SQLite: '1.33'
+  DBI: '1.57'
+  File::Temp: '0.2'
+  bytes: '0'
+  perl: '5.010001'
+  strict: '0'
+  utf8: '0'
+  warnings: '0'
 resources:
   license: http://www.opensource.org/licenses/artistic-license-2.0
   repository: https://github.com/Akron/DBIx-Oro
-version: 0.30_4
+version: 0.30_5
